@@ -33,6 +33,9 @@ plugins:
 exclude:
  - Gemfile
  - Gemfile.lock
+
+root: /
+permalink: /:title/
 ############################################################
 # Site configuration for the Jekyll 3 Pagination Gem
 # The values here represent the defaults if nothing is set
@@ -63,7 +66,7 @@ pagination:
   tag: ''
   # Optional, the default locale to use, omit to disable (depends on a field 'locale' to be specified in the posts,
   # in reality this can be any value, suggested are the Microsoft locale-codes (e.g. en_US, en_GB) or simply the ISO-639 language code )
-  locale: 'fi_FI'
+  # locale: 'fi_FI'
  # Optional,omit or set both before and after to zero to disable.
  # Controls how the pagination trail for the paginated pages look like.
   trail:
