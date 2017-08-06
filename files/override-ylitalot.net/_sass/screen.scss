@@ -1,7 +1,12 @@
-@import "compass";
-@include global-reset;
-@include reset-html5;
-
-@import "base";
-@import "partials";
+@import "base/utilities";
+@import "base/solarized";
+@import "base/theme";
+@import "base/typography";
+@import "base/layout";
+@import "partials/header";
+@import "partials/navigation";
+@import "partials/blog";
+@import "partials/sharing";
+@import "partials/syntax";
+@import "partials/archive";
 @import "custom/styles";
