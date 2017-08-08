@@ -1,20 +1,46 @@
 ---
 layout: default
-single: true
 ---
+<article class="post" itemscope itemtype="http://schema.org/BlogPosting">
 
-<div>
-<article class="hentry" role="article">
-  {% include article.html %}
-  <footer>
-    <p class="meta">
-      {% if page.previous.url %}
-        <a class="basic-alignment left" href="{{page.previous.url}}" title="Previous Post: {{page.previous.title}}">&laquo; {{page.previous.title}}</a>
-      {% endif %}
-      {% if page.next.url %}
-        <a class="basic-alignment right" href="{{page.next.url}}" title="Next Post: {{page.next.title}}">{{page.next.title}} &raquo;</a>
-      {% endif %}
-    </p>
-  </footer>
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">{{ page.title | escape }}</h1>
+    <p class="post-meta">
+      <time datetime="{{ page.date | date_to_xmlschema }}" itemprop="datePublished">
+        {% assign date_format = site.minima.date_format | default: "%b %-d, %Y" %}
+        {{ page.date | date: date_format }}
+      </time>
+      {% if page.author %}
+        • <span itemprop="author" itemscope itemtype="http://schema.org/Person"><span itemprop="name">{{ page.author }}</span></span>
+      {% endif %}</p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    {{ content }}
+  </div>
+
+  {% if site.disqus.shortname %}
+    {% include disqus_comments.html %}
+  {% endif %}
 </article>
-</div>
+<!-- colorbox -->
+<script src="/js/jquery.min.js"></script>
+<script src="/js/jquery.colorbox.js"></script>
+<script src="/js/i18n/jquery.colorbox-fi.js"></script>
+<script>var onresize = function() {
+  $('a[rel="slide"]').attr("href", function(i, val) {
+    var w = $(window).width();
+    var h = $(window).height();
+    if (w > 2000) {w = 2000};
+    if (h > 2000) {h = 2000};
+    var dim = "/w" + (w-25) + "-h" + (h-60) + "-no/";
+    return val.replace(/\/w[0-9]*-h[0-9]*-no\//, dim);
+  })
+};
+$(document).ready(function() {
+  onresize();
+  $(window).resize(onresize);
+  $('a[rel="slide"]').colorbox();
+});
+</script>
+<!-- /colorbox -->
