@@ -27,20 +27,11 @@ layout: default
 <script src="/js/jquery.min.js"></script>
 <script src="/js/jquery.colorbox.js"></script>
 <script src="/js/i18n/jquery.colorbox-fi.js"></script>
-<script>var onresize = function() {
-  $('a[rel="slide"]').attr("href", function(i, val) {
-    var w = $(window).width();
-    var h = $(window).height();
-    if (w > 2000) {w = 2000};
-    if (h > 2000) {h = 2000};
-    var dim = "/w" + (w-25) + "-h" + (h-60) + "-no/";
-    return val.replace(/\/w[0-9]*-h[0-9]*-no\//, dim);
-  })
-};
+<script>
 $(document).ready(function() {
-  onresize();
-  $(window).resize(onresize);
-  $('a[rel="slide"]').colorbox();
+  $('a[rel="slide"]').colorbox({
+    maxWidth: '100%', maxHeight: '100%', scalePhotos: 'true'
+  });
 });
 </script>
 <!-- /colorbox -->
