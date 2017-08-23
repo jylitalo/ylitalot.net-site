@@ -29,7 +29,7 @@
     with_items:
       - .gitignore
       - setup.retry
-      - files/_images
+      - files/images
       - "files/{{site}}"
       - "files/{{site}}-content.git"
       - files/colorbox.git
@@ -92,11 +92,15 @@
     with_items:
       - _plugins
       - _posts
-  - name: finalize setup
-    shell: "{{item}}"
+  - name: "images exists?"
+    stat: path=files/images
+    register: images_dir
+  - name: "create images"
+    shell: python ../assets_on_jekyll.py
     args:
-      chdir: "files/{{site}}/"
-    with_items:
-      - bundle install
-      - python ../assets_on_jekyll.py
-      - jekyll build
+      chdir: "files/{{site}}"
+    when: images_dir.stat.exists
+  - name: build site
+    shell: "jekyll build"
+    args:
+      chdir: "files/{{site}}"
