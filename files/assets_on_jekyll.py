@@ -57,7 +57,7 @@ class AssetsFinder(Jekyll):
         self._dir = None
         self._linked = {}
         self._url_names = {}
-        self.img_root = '../_images'
+        self.img_root = '../images'
     # end of __init__(self)
 
     @property
