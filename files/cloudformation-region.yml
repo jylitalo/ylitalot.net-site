@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Create AWS S3 Bucket and Cloudfront in front of it.
+
+Parameters:
+  BucketName:
+    Description: Name of S3 bucket
+    Type: String
+  SiteName: 
+    Description: Website name on browser
+    Type: String
+  OriginAccessId:
+    Description: Origin Identity for CloudFront
+    Type: String
+Resources:
+  Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      AccessControl: BucketOwnerFullControl
+      BucketName: !Ref BucketName
+      CorsConfiguration:
+        CorsRules:
+          - AllowedMethods: ['GET']
+            AllowedOrigins: ['*']
+            MaxAge: '3600'
+  BucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref BucketName
+      PolicyDocument:
+        Statement:
+        -
+          Action: 's3:GetObject'
+          Effect: 'Allow'
+          Principal:
+            AWS: !Sub "arn:aws:iam::cloudfront:user/CloudFront Origin Access Identity ${OriginAccessId}"
+          Resource: !Sub "arn:aws:s3:::${BucketName}/*"
+Outputs:
+  DomainName:
+    Description: The DomainName of S3 Bucket
+    Value: !GetAtt Bucket.DomainName

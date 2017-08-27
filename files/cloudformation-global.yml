@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Create AWS S3 Bucket and Cloudfront in front of it.
+
+Parameters:
+  BucketName:
+    Description: Name of S3 bucket
+    Type: String
+  DomainName:
+    Description: DomainName from S3 Bucket
+    Type: String
+  SiteName: 
+    Description: Website name on browser
+    Type: String
+  OriginAccessId:
+    Description: Origin Identity for CloudFront
+    Type: String
+Resources:
+  Certificate:
+    Type: 'AWS::CertificateManager::Certificate'
+    Properties:
+      DomainName: !Ref SiteName
+  CloudFrontDistribution:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Aliases: [ !Ref BucketName ]
+        DefaultRootObject: index.html
+        Enabled: true
+        PriceClass: 'PriceClass_100'
+        DefaultCacheBehavior:
+          AllowedMethods: [ GET, HEAD ]
+          Compress: true
+          TargetOriginId: !Sub 'S3-${BucketName}'
+          ViewerProtocolPolicy: 'redirect-to-https'
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+        Origins:
+        - DomainName: !Ref DomainName
+          Id: !Sub 'S3-${BucketName}'
+          S3OriginConfig:
+            OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${OriginAccessId}"
+        ViewerCertificate:
+          AcmCertificateArn: !Ref Certificate
+          MinimumProtocolVersion: TLSv1
+          SslSupportMethod: 'sni-only'
