@@ -5,6 +5,7 @@
     random_number: "{{ 10000 | random }}"
     stack_name: www-ylitalot-net
     website: www.ylitalot.net
+    output_dir: "{{ ansible_env.PWD }}/files/ylitalot.net/_site"
   tasks:
   ###
   # cloud-front-origin-access-identity
@@ -47,8 +48,10 @@
         BucketName: "{{website}}"
         OriginAccessId: "{{origin_access_id}}"
     register: cf
-  # - name: output from cf
-  #   debug: msg="{{cf}}"
+  - name: output from cf or for cf
+    debug: msg="{{item}}"
+    with_items:
+    - "DomainName: {{website}}.s3-eu-west-1.amazonaws.com"
   - name: runs global cloudformation
     cloudformation:
       stack_name: "{{stack_name}}"
@@ -59,10 +62,22 @@
       template_parameters:
         SiteName: "{{website}}"
         BucketName: "{{website}}"
-        DomainName: "{{website}}.s3-eu-west-1.amazonaws.com"
-        # DomainName: "{{cf.stack_outputs.DomainName}}"
+        DomainName: "{{cf.stack_outputs.DomainName}}"
+        # DomainName: "{{website}}.s3.amazonaws.com"
+        # DomainName: "{{website}}.s3-eu-west-1.amazonaws.com"
+        # TODO: 
+        # DomainName needs more experiments with new buckets. 
+        # Conflicting results so far.
         OriginAccessId: "{{origin_access_id}}"
     register: cf
   - name: output from cf
-    debug: msg="{{cf}}"
-
+    debug: msg="{{item}}"
+    with_items:
+    - "output_dir = {{output_dir}}"
+  - name: sync content
+    command: aws s3 sync {{item}} "s3://{{website}}/"
+    args:
+      chdir: "{{output_dir}}"
+    with_items:
+      - "images"
+      - "*"
