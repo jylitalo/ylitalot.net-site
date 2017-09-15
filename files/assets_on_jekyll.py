@@ -57,7 +57,7 @@ class AssetsFinder(Jekyll):
         self._dir = None
         self._linked = {}
         self._url_names = {}
-        self.img_root = '../images'
+        self.scaled_images_root = '../images'
     # end of __init__(self)
 
     @property
@@ -78,7 +78,7 @@ class AssetsFinder(Jekyll):
         valid
         """
         errors = []
-        for key in ['_posts', self.img_root]:
+        for key in ['_posts', self.scaled_images_root]:
             if not os.path.isdir('%s/%s' % (dname, key)):
                 errors += [key]
         msg = 'Source directory (%s) is missing sub-directories: %s'
@@ -86,15 +86,18 @@ class AssetsFinder(Jekyll):
         self._dir = dname
     # end of dif(self, dname)
 
+    def _is_valid_file(self, fname):
+        return not self._ignore(fname) and self._validate_found(fname)
+
     def _scan_tree(self, subdir):
         ret = []
         ignore = len(self.dir)
         for root, dirnames, fnames in os.walk(self.dir + subdir):
             root = root[ignore:]
             fnames = [os.path.join(root, fn) for fn in fnames]
-            fnames = [fn for fn in fnames if not self._ignore(fn) and self._validate_found(fn)]
+            fnames = [fn for fn in fnames if self._is_valid_file(fn)]
             ret.extend(fnames)
-        print("scan_tree(%s) = %s" % (subdir, str(ret)))
+        # print("scan_tree(%s) = %s" % (subdir, str(ret)))
         return ret
     # enf of _scan_tree(self,subdir)
 
@@ -107,14 +110,12 @@ class AssetsFinder(Jekyll):
         True
         >>> i._ignore('/_posts/.#1970-01-01-foobar.markdown')
         True
-        >>> i._ignore('/images/2013/11/IMG_1234_t.jpg')
+        >>> i._ignore('/_posts/1970-01-01-foobar.markdown')
         False
         """
         if fname.endswith('.DS_Store'):
             return True
         if fname.find('/.#') > -1:
-            return True
-        if fname.startswith('/images/') and fname.count('/') == 2:
             return True
         return False
     # end of _ignore(fname)
@@ -131,9 +132,10 @@ class AssetsFinder(Jekyll):
         ['./index.markdown', './1970-01-01-valid.markdown', 'abc/abc.markdown']
         """
         ret = []
-        for root, dirnames, fnames in os.walk(self.dir, followlinks=True):
-            flist = fnmatch.filter(fnames, '[0-9a-z]*.markdown')
-            ret.extend([os.path.join(root, fn) for fn in flist])
+        for root, dirnames, fnames in os.walk(self.dir):
+            for suffix in ['md', 'markdown']:
+                flist = fnmatch.filter(fnames, '[0-9a-z]*.' + suffix)
+                ret.extend([os.path.join(root, fn) for fn in flist])
         return ret
     # end of _find_markdown_files(self)
 
@@ -153,16 +155,14 @@ class AssetsFinder(Jekyll):
         >>> AssetsFinder.get_url('f/source/foo-bar.markdown')
         'foo-bar'
         """
-        end_index = len('.markdown')
-        fname = fname[:-end_index]
+        for suffix in ['.md', '.markdown']:
+            if fname.endswith(suffix):
+                fname = fname[:-len(suffix)]
+                break
         if 'source/_posts/' in fname:
             begin_index = len('yyyy-mm-dd-')
             return os.path.basename(fname)[begin_index:]
-        if fname.endswith('/index'):
-            fname = fname[:-len('/index')]
-            return fname[fname.rfind('/')+1:]
-        else:
-            return os.path.basename(fname)
+        return os.path.basename(fname)
     # end of get_url(fname)
 
     @staticmethod
@@ -175,10 +175,12 @@ class AssetsFinder(Jekyll):
         basename = os.path.basename(fname)
         if date_str and not basename.startswith(date_str + '-'):
             fname2 = fname.replace(basename[:len(date_str)], date_str)
-            print('git mv -f %s %s' % (fname, fname2))
-            os.system('git mv -f %s %s' % (fname, fname2))
-            return fname2
-        return fname
+            print('### TODO: git mv -f %s %s' % (fname, fname2))
+
+    def _is_duplicate(self, fname, url_name):
+        if url_name in self._url_names:
+            return self._url_names[url_name] != fname
+        return False
 
     def scan(self, dir=os.getcwd()):
         self.dir = self.find_source_dir(dir)
@@ -190,13 +192,11 @@ class AssetsFinder(Jekyll):
         print('### processing %d markdown files' % (len(fnames)))
         for fname in fnames:
             f = open(fname)
-            lines = []
-            for line in f:
-                lines += [line]
+            lines = f.readlines()
             f.close()
-            fname = self.fix_filename(fname, lines)
+            self.fix_filename(fname, lines)
             url_name = self.get_url(fname)
-            duplicate = url_name in self._url_names and self._url_names[url_name] != fname
+            duplicate = self._is_duplicate(fname, url_name)
             msg = 'Found duplicate url on following files: %s, %s'
             assert not duplicate, msg % (self._url_names[url_name], fname)
             # end of if url_name in ...
@@ -204,7 +204,8 @@ class AssetsFinder(Jekyll):
             for line in lines:
                 for link in self._extract_from_markdown(line):
                     if link.startswith(img):
-                        link = '/%s/%s' % (self.img_root, link[imglen:])
+                        link = '%s/%s' % (
+                            self.scaled_images_root, link[imglen:])
                     if link in self._linked:
                         self._linked[link] += [url_name]
                     else:
@@ -238,18 +239,17 @@ class AssetsFinder(Jekyll):
             line = '(%s_t.jpg)(%s_c.jpg)' % (link, link)
         # end of if line.startswith ...
 
-        for key in ['images', 'assets']:
-            for field in line.split('(/' + key)[1:]:
-                field = '/%s%s' % (key, field[:field.find(')')])
-                if ' "' in field:
-                    field = field[:field.find(' "')]
+        for field in line.split('(/images')[1:]:
+            field = '/images' + field[:field.find(')')]
+            if ' "' in field:
+                field = field[:field.find(' "')]
+            links += [field]
+        # end of for field in ...
+        for c in [' ', '"', "'"]:
+            for field in line.split(c + '/images')[1:]:
+                field = '/images' + field[:field.find(c, 1)]
                 links += [field]
-            # end of for field in ...
-            for c in [' ', '"', "'"]:
-                for field in line.split('%s/%s' % (c, key))[1:]:
-                    field = '/' + key + field[:field.find(c, 1)]
-                    links += [field]
-            # end of for c in ...
+        # end of for c in ...
         return links
     # end of _extract_from_markdown(line)
 
@@ -262,8 +262,7 @@ class AssetsFinder(Jekyll):
 
     def validate(self):
         found = set()
-        for key in ['assets', self.img_root]:
-            found.update(self._scan_tree('/%s/' % (key)))
+        found.update(self._scan_tree(self.scaled_images_root))
         linked = set(self._linked.keys())
         waste = list(found - linked)
         waste.sort()
@@ -272,8 +271,8 @@ class AssetsFinder(Jekyll):
         missing = list(linked - found)
         missing.sort()
         for fname in missing:
-            if '/images/' in fname:
-                fname = fname.replace('/images/', '/%s/' % (self.img_root))
+            if fname.startswith('/images/'):
+                fname = self.scaled_images_root + fname[len('/images'):]
             self._validate_missing(fname)
     # end of validate(self)
 
@@ -281,9 +280,9 @@ class AssetsFinder(Jekyll):
 class AssetsFixer(AssetsFinder):
     def __init__(self):
         AssetsFinder.__init__(self)
-        self._images_root = []
+        self._originals_root = []
         for d in ['original_jpg', 'jpg']:
-            self._images_root += [os.path.expanduser('~/kuvat/' + d)]
+            self._originals_root += [os.path.expanduser('~/kuvat/' + d)]
         self._validate_original = True
         self._convert_missing = True
         self._original_missing = []
@@ -291,12 +290,12 @@ class AssetsFixer(AssetsFinder):
 
     def _original_image(self, fname):
         # Setup
-        begin_index = fname.find('/', len(self.img_root) + 1)
+        begin_index = len(self.scaled_images_root)
         end_index = len('_t.jpg')
         if fname[-end_index] != '_':
             end_index = len('.jpg')
         # Execute
-        for d in self._images_root:
+        for d in self._originals_root:
             pattern = '%s%s.*' % (d, fname[begin_index:-end_index])
             original_fname = glob.glob(pattern)
             if original_fname:
@@ -309,7 +308,7 @@ class AssetsFixer(AssetsFinder):
 
     def _validate_found(self, fname):
         # Setup
-        if fname == '/%s/2014/03/P3260000_t.jpg' % (self.img_root):
+        if fname == '%s/2014/03/P3260000_t.jpg' % (self.scaled_images_root):
             return False
         if not self._validate_original:
             return True
@@ -338,7 +337,7 @@ class AssetsFixer(AssetsFinder):
 
     def _validate_missing(self, fname):
         # Setup
-        if fname == '/%s/2014/03/P3260000_t.jpg' % (self.img_root):
+        if fname == '/%s/2014/03/P3260000_t.jpg' % (self.scaled_images_root):
             return
         if not self._convert_missing:
             AssetsFinder._validate_missing(self, fname)
@@ -355,7 +354,8 @@ class AssetsFixer(AssetsFinder):
         assert os.access(dname, os.W_OK), 'need write access to ' + dname
         # print('### images for: ' + ','.join(self._linked[fname]))
         if fname.endswith('_t.jpg'):
-            cmdline = 'convert -thumbnail 150x150^ -gravity center -extent 150x150 %s %s' % (original_fname, full_fname)
+            args = '-thumbnail 150x150^ -gravity center -extent 150x150'
+            cmdline = 'convert %s %s %s' % (args, original_fname, full_fname)
             print('### ' + cmdline)
             os.system(cmdline)
         elif fname.endswith('_c.jpg'):

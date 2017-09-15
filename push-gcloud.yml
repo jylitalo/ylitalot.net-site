@@ -1,0 +1,5 @@
+---
+- hosts: localhost
+  vars:
+    site: ylitalot.net
+  tasks:

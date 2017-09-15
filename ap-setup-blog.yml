@@ -15,17 +15,15 @@
     args:
       chdir: "files/override-{{site}}"
   - name: git update
-    git: repo={{item.repo}} dest=files/{{item.dest}} update=yes
+    git: repo={{item.repo}} dest={{item.dest}} update=yes
     with_items:
-      - { repo: "git@github.com:jackmoore/colorbox.git", dest: "colorbox.git" }
+      - { repo: "git@github.com:jackmoore/colorbox.git", dest: "files/colorbox.git" }
       - { repo: "git@bitbucket.org:jylitalo/{{site}}.git", dest: "{{site}}.git" }
   ###
   # .gitignore
   ###
-  - name: .gitignore exists
-    file: path=.gitignore state=touch
   - name: "add items to .gitignore"
-    lineinfile: name=.gitignore regexp="^{{item}}$" line="{{item}}"
+    lineinfile: name=.gitignore create=yes regexp="^{{item}}$" line="{{item}}"
     with_items:
       - .gitignore
       - setup.retry
@@ -33,7 +31,7 @@
       - files/colorbox.git
   - name: .gitignore for content
     lineinfile:
-      name: "files/{{site}}.git/.gitignore"
+      name: "{{site}}.git/.gitignore"
       regexp: "^{{item}}$"
       line: "{{item}}"
     with_items:
@@ -41,77 +39,84 @@
       - Gemfile.lock
       - _config.yml
       - _layouts
-      - _plugins/site_post_write.rb
       - _sass
       - assets
       - img
       - index.md
-      - info.md
       - js
   ###
   # setup {{site}} with jekyll
   ###
   - name: "{{site}}.git exists?"
-    stat: path=files/{{site}}.git/_posts
+    stat: path={{site}}.git/_posts
     register: jekyll_done
   - name: create site
     shell: "jekyll new {{site}}.git"
     args:
       chdir: "files"
-    when: jekyll_done.stat.exists == False
+    when: not jekyll_done.stat.exists
   - name: clean extra files from jenkins new
     file: path="{{item}}" state=absent
     with_fileglob:
-      - "files/{{site}}.git/about.md"
-      - "files/{{site}}.git/_posts/*-welcome-to-jekyll.markdown"
-    when: jekyll_done.stat.exists == False
+      - "{{site}}.git/about.md"
+      - "{{site}}.git/_posts/*-welcome-to-jekyll.markdown"
+    when: not jekyll_done.stat.exists 
   ###
   # Colorbox
   ###
   - name: colorbox directories
-    file: path="files/{{site}}.git/{{item}}" state=directory
+    file: path="{{site}}.git/{{item}}" state=directory
     with_items:
       - img
       - js/i18n
-  - name: copy images from colorbox
-    copy: src="{{item}}" dest="files/{{site}}.git/img/"
+  - name: link images from colorbox
+    file:
+      src: "{{item}}"
+      dest: "{{site}}.git/img/{{item | basename}}"
+      state: hard
     with_fileglob:
       - "files/colorbox.git/example4/images/*"
-  - name: copy i18n from colorbox
-    copy: src="files/colorbox.git/{{item.src}}" dest="files/{{site}}.git/{{item.dest}}"
-    with_items:
-      - { src: "i18n/jquery.colorbox-fi.js", dest: "js/i18n/" }
-  - name: copy javascript from colorbox
-    copy: src="{{item}}" dest="files/{{site}}.git/js/"
+  - name: link i18n from colorbox
+    file:
+      src: "{{playbook_dir}}/files/colorbox.git/i18n/jquery.colorbox-fi.js"
+      dest: "{{site}}.git/js/i18n/jquery.colorbox-fi.js"
+      state: hard
+  - name: link javascript from colorbox
+    file:
+      src: "{{item}}"
+      dest: "{{site}}.git/js/{{item | basename}}"
+      state: hard
     with_fileglob:
       - "files/colorbox.git/*.js"
   - name: download jquery
     get_url:
       url: https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js
-      dest: "files/{{site}}.git/js/jquery.min.js"
+      dest: "{{site}}.git/js/jquery.min.js"
   ###
   # {{site}} specific stuff
   ###
-  - name: "override with {{site}} (copy)"
-    copy: src="{{item}}" dest="files/{{site}}.git/" directory_mode=yes
+  - name: "override with {{site}}"
+    file: src="{{item}}" dest="{{site}}.git/{{item | basename}}" state=link
     with_fileglob:
       - "files/override-{{site}}/*"
   - name: "override with {{site}} (sync)"
-    synchronize: src="files/override-{{site}}/{{item}}" dest="files/{{site}}.git/" archive=yes
+    file:
+      src: "{{playbook_dir}}/files/override-{{site}}/{{item}}"
+      dest: "{{site}}.git/{{item}}"
+      state: link
     with_items:
       - _layouts
-      - _plugins
       - _sass
       - assets
   - name: "images exists?"
     stat: path=files/images
     register: images_dir
   - name: "create images"
-    shell: python ../assets_on_jekyll.py
+    shell: python _plugins/assets_on_jekyll.py
     args:
-      chdir: "files/{{site}}.git"
+      chdir: "{{site}}.git"
     when: images_dir.stat.exists
   - name: build site
     shell: "jekyll build"
     args:
-      chdir: "files/{{site}}.git"
+      chdir: "{{site}}.git"

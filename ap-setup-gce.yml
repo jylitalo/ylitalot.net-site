@@ -1,0 +1,19 @@
+---
+- hosts: localhost
+  vars:
+    bucket: "www.ylitalot.net"
+  tasks:
+  - name: create storage
+    command: "gsutil -q mb -c regional -l us-central1 -p ylitalotcom gs://{{bucket}}"
+    ignore_errors: yes
+  - name: sync content
+    command: "gsutil rsync -r {{item}}/ gs://{{bucket}}/{{item}}"
+    args:
+      chdir: ylitalot.net.git/_site
+    with_items:
+    - images
+    - .
+  - name: make it all public
+    command: "gsutil defacl ch -u AllUsers:R gs://{{bucket}}"
+  - name: make it website
+    command: "gsutil web set -m index.html -e 404.html gs://{{bucket}}"
