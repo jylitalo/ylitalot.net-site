@@ -1,5 +1,6 @@
 ---
 - hosts: localhost
+  connection: local
   vars:
     bucket: "www.ylitalot.net"
   tasks:
@@ -9,7 +10,7 @@
   - name: sync content
     command: "gsutil rsync -r {{item.src}}/ gs://{{bucket}}/{{item.dest}}"
     args:
-      chdir: ylitalot.net.git/_site
+      chdir: ylitalot.net/_site
     with_items:
     - {src: "images", dest: "images"}
     - {src: ".", dest: ""}
