@@ -1,0 +1,9 @@
+---
+- hosts: localhost
+  connection: local
+  tasks:
+  - name: git update
+    git: repo={{item.repo}} dest={{item.dest}} update=yes
+    with_items:
+    - { repo: "git@github.com:jylitalo/JekyllSetup.git", dest: "roles/JekyllSetup" }
+    - { repo: "git@github.com:jylitalo/SyncToGoogleStorage.git", dest: "roles/SyncToGoogleStorage" }

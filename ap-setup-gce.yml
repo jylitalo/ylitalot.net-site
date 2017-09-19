@@ -1,20 +1,16 @@
 ---
 - hosts: localhost
   connection: local
-  vars:
-    bucket: "www.ylitalot.net"
   tasks:
-  - name: create storage
-    command: "gsutil -q mb -c regional -l us-central1 -p ylitalotcom gs://{{bucket}}"
-    ignore_errors: yes
-  - name: sync content
-    command: "gsutil rsync -r {{item.src}}/ gs://{{bucket}}/{{item.dest}}"
-    args:
-      chdir: ylitalot.net/_site
-    with_items:
-    - {src: "images", dest: "images"}
-    - {src: ".", dest: ""}
-  - name: make it all public
-    command: "gsutil defacl ch -u AllUsers:R gs://{{bucket}}"
-  - name: make it website
-    command: "gsutil web set -m index.html -e 404.html gs://{{bucket}}"
+  - name: sync content to Google Cloud Storage
+    include_role: 
+      name: SyncToGoogleStorage
+    vars:
+      bucket: www.ylitalot.net
+      location: us-central1
+      project: ylitalotcom
+      storage_class: regional
+      chdir: "{{playbook_dir}}/blog/_site"
+      dirs:
+      - {src: "images", dest: "images", extra_args: ""}
+      - {src: ".", dest: "", extra_args: "-x images"}
